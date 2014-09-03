@@ -1,4 +1,3 @@
 ERS
 ===
 
-Figuring GIT out
