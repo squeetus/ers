@@ -12,6 +12,7 @@ var offsetY = 0; //Offset values from dragging stage
 var currentNode = null; //The latest or selected node
 var is_hovering = false; //Used to process only node clicks
 var is_adding_node = false; //Flag to stop multiple nodes being added without being linked or canceled
+var addingDoor = false; //Flag to differentiate between links to a room node and a room bbox
 var nodeDrag = false; //Used to stop excess taps when moving nodes
 var counter = 0; //Counter used to increment/name nodes
 var roomCounter = 0; //Counter used for room naming
@@ -211,10 +212,13 @@ function cancelLink(){
 }
 
 //Join two existing nodes
-function joinNodes(startNode, endNode) {
+function joinNodes(startNode, endNode, offset) {
+    offset = typeof offset !== 'undefined' ? offset : {x:0, y:0};
+    console.log(offset);
+
     //Create edge between linker node and target node
     var edge_id = startNode.id + "_" + endNode.id;
-    var edge = new Edge(startNode, endNode, edge_id);
+    var edge = new Edge(startNode, endNode, edge_id, offset);
     var alt_edge_id = endNode.id + "_" + startNode.id;
 
     edges[edge_id] = edge;
@@ -228,13 +232,14 @@ function joinNodes(startNode, endNode) {
     endNode = null;
 
     if(stage.linkStart.type == "node" || stage.linkStart.type == "Hallway")
-    	stage.linkStart.visual.fill("#2B64FF");
+    	stage.linkStart.visual.fill(nodeColor.blue);
     if(stage.linkEnd.type == "node" || stage.linkEnd.type == "Hallway")
-	stage.linkEnd.visual.fill("#2B64FF");
+	stage.linkEnd.visual.fill(nodeColor.blue);
 
     stage.linkStart = null;
     stage.linkEnd   = null;
 
+    nodeLayer.draw();
     edgeLayer.draw();
     //rootLayer.draw();
 }
@@ -840,7 +845,7 @@ Node.prototype.render = function(x, y, r){
 		doors: {}
 		//offset: {x:width/2, y:height/2}
             });
-	    
+	    this.bbox.parentNode = this; 
 	    setupRoom(this.bbox);
 
 	//    rootLayer.add(this.bbox);
@@ -912,9 +917,42 @@ function setupRoom(room) {
 	         }
 	     }
 	} else {
+	//###
 	    //LOGIC FOR ADDING LINKS (NEW NODES OR NEW LINKS) TO ROOM BY TAPPING BBOX
-	    
+	    if(stage.linkStart != null && stage.linkStart.id != room.parentNode.id) {
+		console.log("ADD ME");
+		var touchPos = getRelativePointerPosition();
+     	        touchPos.x = roundToNearest(touchPos.x, default_snap_tolerance);
+       		touchPos.y = roundToNearest(touchPos.y, default_snap_tolerance);
 
+
+		console.log(room.x(), room.y(), room.width(), room.height());
+
+	    	var offset = {x: touchPos.x - room.parentNode.x, y: touchPos.y - room.parentNode.y};
+		console.log(offset);
+
+		var edge_id = stage.linkStart.id + "_" + room.parentNode.id;
+	 	var alt_edge_id = room.parentNode.id + "_" + stage.linkStart.id;
+	
+		if(edges[edge_id] != null || edges[alt_edge_id] != null) {
+		    //edge exists, cancel join
+		    stage.linkStart.visual.fill(nodeColor.blue);
+		    console.log("Canceling join");
+		    stage.linkStart = null;
+	 	    stage.linkEnd = null;
+		    return;
+		} else {
+		    //edge doesn't exist, create it
+		    stage.linkEnd = room.parentNode;
+		    addingDoor = true;
+		    console.log("Set stage.linkEnd");
+		     
+		    joinNodes(stage.linkStart, stage.linkEnd, offset);
+		}
+
+	    } else {
+		console.log("DON'T ADD");
+	    }
 	}
     
 	roomLayer.draw();    
@@ -975,7 +1013,8 @@ Node.prototype.delete = function(){
 }
 
 //Every two nodes has an edge between it. The edge class represents the line being drawn between those nodes
-function Edge(startNode, endNode, id) {
+function Edge(startNode, endNode, id, offset) {
+    offset = typeof offset !== 'undefined' ? offset : {x:0, y:0};
 
     //Start and endpoint nodes
     this.startNode = startNode;
@@ -984,6 +1023,8 @@ function Edge(startNode, endNode, id) {
     //Edge ID
     this.id = id;
 
+    //Room offset
+    this.offset = offset;
     edge_count++;
 
     $("#edgeCount").html("<strong>Edges:</strong> " + edge_count);
@@ -1002,6 +1043,8 @@ Edge.prototype.toJSON = function() {
 
 Edge.prototype.setupLine = function () {
     //"use strict";
+    //offset = typeof offset !== 'undefined' ? offset : {x:0, y:0};
+
     var _self = this;
 
     var startOffset = 0;
@@ -1011,14 +1054,18 @@ Edge.prototype.setupLine = function () {
         startOffset = this.startNode.visual.width() / 2;
     }
 
-    if (this.endNode.type != "node" && this.endNode.type != "Hallway"){
+    if (this.endNode.type != "node" && this.endNode.type != "Hallway" && !addingDoor){
         endOffset = this.endNode.visual.width() / 2;
     }
 
+    //Adjust sentinel now that the endOffset has been calculated
+    if(addingDoor)
+	addingDoor = false;
+
     var x1 = parseFloat(this.startNode.visual.x()) + startOffset;
     var y1 = parseFloat(this.startNode.visual.y()) + startOffset;
-    var x2 = parseFloat(this.endNode.visual.x()) + endOffset;
-    var y2 = parseFloat(this.endNode.visual.y()) + endOffset;
+    var x2 = parseFloat(this.endNode.visual.x()) + endOffset + _self.offset.x;
+    var y2 = parseFloat(this.endNode.visual.y()) + endOffset + _self.offset.y;
 
     //Create line and attributes
     this.visual = new Kinetic.Line({
@@ -1044,7 +1091,7 @@ Edge.prototype.setupLine = function () {
         listening: false
     }).hide();
 
-    this.guideLine.on('tap', function(e) {
+    this.guideLine.on('tap click', function(e) {
 	if(is_adding_node == true) {
 	    var touchPos = getRelativePointerPosition();
 	    var x = touchPos.x;
@@ -1054,6 +1101,8 @@ Edge.prototype.setupLine = function () {
 	    var targetEdge = edges[this.id];
 	    splitEdge(linkerNode, targetEdge, x, y);
 	}
+
+	console.log(_self.offset);
     });
 
     this.guideLine.on(dbltap, function(e){
@@ -1085,19 +1134,25 @@ Edge.prototype.setPosition = function () {
 
     var startOffset = 0;
     var endOffset = 0;
+    var _self = this;
+    var sentinel = false;
+
+    if(_self.offset.x > 0 && _self.offset.y > 0) {
+	sentinel = true;
+    }
 
     if(this.startNode.type != "node" && this.startNode.type != "Hallway") {
         startOffset = this.startNode.visual.width() / 2;
     }
 
-    if (this.endNode.type != "node" && this.endNode.type != "Hallway"){
+    if (this.endNode.type != "node" && this.endNode.type != "Hallway" && !sentinel){
         endOffset = this.endNode.visual.width() / 2;
     }
 
     var x1 = this.startNode.visual.x() + startOffset;
     var y1 = this.startNode.visual.y() + startOffset;
-    var x2 = this.endNode.visual.x() + endOffset;
-    var y2 = this.endNode.visual.y() + endOffset;
+    var x2 = this.endNode.visual.x() + endOffset + _self.offset.x;
+    var y2 = this.endNode.visual.y() + endOffset + _self.offset.y;
 
     this.visual.points([x1, y1, x2, y2]);
     this.guideLine.points([x1, y1, x2, y2]);
