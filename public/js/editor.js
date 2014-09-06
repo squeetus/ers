@@ -214,7 +214,6 @@ function cancelLink(){
 //Join two existing nodes
 function joinNodes(startNode, endNode, offset) {
     offset = typeof offset !== 'undefined' ? offset : {x:0, y:0};
-    console.log(offset);
 
     //Create edge between linker node and target node
     var edge_id = startNode.id + "_" + endNode.id;
@@ -843,13 +842,10 @@ Node.prototype.render = function(x, y, r){
                 height: height,
 		guideCircle: null,
 		doors: {}
-		//offset: {x:width/2, y:height/2}
             });
 	    this.bbox.parentNode = this; 
 	    setupRoom(this.bbox);
 
-	//    rootLayer.add(this.bbox);
-	//    rootLayer.draw();
             roomLayer.add(this.bbox);
             roomLayer.draw();
         }
@@ -879,7 +875,6 @@ function setupRoom(room) {
         var rectY = room.y()// - room.getHeight() / 2;
 	x = (x > rectX + 25 ? x : rectX + 25);
 	y = (y > rectY + 36.5? y : rectY + 36.5);
-	console.log(x,y);
 	this.setPosition({x:x,y:y});	
 	var w = x - rectX + 25;
 	var h = y - rectY + 36.5;
@@ -887,6 +882,18 @@ function setupRoom(room) {
 	h = (h > default_room_height? h : default_room_height);
         room.size({width: w, height: h});
         roomLayer.draw();
+
+	//Delete the door edges associated with this room
+	//(This is a bit brute-force; it could be better to update their positions 
+	//	or only delete them if the room's new position makes their position illogical)
+ 	if(!jQuery.isEmptyObject(room.attrs.doors)) {
+	    $.each(room.attrs.doors, function(key, value) {
+	    	var id = key + "_" + room.parentNode.id;
+	    	var edge = edges[id];
+	    	edge.deleteEdge();
+		delete room.attrs.doors[key];
+	    });
+	} 
     });
     
     roomLayer.add(room.guideCircle);
@@ -917,7 +924,6 @@ function setupRoom(room) {
 	         }
 	     }
 	} else {
-	//###
 	    //LOGIC FOR ADDING LINKS (NEW NODES OR NEW LINKS) TO ROOM BY TAPPING BBOX
 	    if(stage.linkStart != null && stage.linkStart.id != room.parentNode.id) {
 		console.log("ADD ME");
@@ -946,8 +952,11 @@ function setupRoom(room) {
 		    stage.linkEnd = room.parentNode;
 		    addingDoor = true;
 		    console.log("Set stage.linkEnd");
-		     
+		    
+		    room.attrs.doors[stage.linkStart.id] = stage.linkStart;
+ 
 		    joinNodes(stage.linkStart, stage.linkEnd, offset);
+		    
 		}
 
 	    } else {
@@ -1026,7 +1035,7 @@ function Edge(startNode, endNode, id, offset) {
     //Room offset
     this.offset = offset;
     edge_count++;
-
+     
     $("#edgeCount").html("<strong>Edges:</strong> " + edge_count);
 
     this.setupLine();
@@ -1037,24 +1046,35 @@ Edge.prototype.toJSON = function() {
         startNode: this.startNode.id,
         endNode: this.endNode.id,
         //edgeWidth: this.guideLine.strokeWidth
-	edgeWidth: edge_guide_width
+	edgeWidth: edge_guide_width,
+	offsetX: this.offset.x,
+	offsetY: this.offset.y
     };
 }
 
 Edge.prototype.setupLine = function () {
     //"use strict";
-    //offset = typeof offset !== 'undefined' ? offset : {x:0, y:0};
-
     var _self = this;
 
     var startOffset = 0;
     var endOffset = 0;
+    var sentinel = false;
+
+    //If the edge is connected to a room bbox, treat it as a door
+    if(_self.offset.x != 0 || _self.offset.y !=0) {
+	sentinel = true;
+
+	//If we are indeed adding a door to a room, update the bbox's door object
+	if(_self.endNode.type == 'room') {
+	    _self.endNode.bbox.attrs.doors[_self.startNode.id] = _self.startNode;
+	}
+    }
 
     if(this.startNode.type != "node" && this.startNode.type !="Hallway") {
         startOffset = this.startNode.visual.width() / 2;
     }
 
-    if (this.endNode.type != "node" && this.endNode.type != "Hallway" && !addingDoor){
+    if (this.endNode.type != "node" && this.endNode.type != "Hallway" && !addingDoor && !sentinel){
         endOffset = this.endNode.visual.width() / 2;
     }
 
@@ -1094,15 +1114,14 @@ Edge.prototype.setupLine = function () {
     this.guideLine.on('tap click', function(e) {
 	if(is_adding_node == true) {
 	    var touchPos = getRelativePointerPosition();
-	    var x = touchPos.x;
-	    var y = touchPos.y;    	    
+	    var x = roundToNearest(touchPos.x,default_snap_tolerance);
+	    var y = roundToNearest(touchPos.y,default_snap_tolerance);    	    
 	    is_adding_node = false;
 	
 	    var targetEdge = edges[this.id];
 	    splitEdge(linkerNode, targetEdge, x, y);
+	} else if(selectedTool == "node") {
 	}
-
-	console.log(_self.offset);
     });
 
     this.guideLine.on(dbltap, function(e){
@@ -1237,6 +1256,14 @@ Edge.prototype.deleteEdge = function(){
     //Remove this edge from it's start and end node's edge list
     delete this.startNode.edges[this.id];
     delete this.endNode.edges[this.id];
+
+    //If this edge is attached to a room bbox, remove it from that object too
+    if( this.offset.x != 0 && this.offset.y != 0 && this.endNode.type == 'room') {
+	var id = this.id.split("_");
+	var id = id[0];
+	console.log(id);
+	delete this.endNode.bbox.attrs.doors[id];
+    }
 
     //Remove this edge from the global edge array
     delete edges[this.id];
@@ -1507,7 +1534,16 @@ function loadGraph(data) {
         var width = edge_data[i]["edge_width"];
         var edge_id = start_id + "_" + end_id;
 
-        var edge = new Edge(nodes[start_id], nodes[end_id], edge_id);
+	var offsetX = parseFloat(edge_data[i]["offsetX"]);
+	var offsetY = parseFloat(edge_data[i]["offsetY"]);
+	var offset = {x:offsetX, y:offsetY};
+	
+	if(isNaN(offset.x))
+	    offset.x = 0; 
+        if(isNaN(offset.y))
+	    offset.y = 0;
+
+	var edge = new Edge(nodes[start_id], nodes[end_id], edge_id, offset);
         edges[edge_id] = edge;
         //edge.guideLine.strokeWidth(width);
 

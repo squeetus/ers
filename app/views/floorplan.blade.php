@@ -165,6 +165,7 @@
         <div id="edgeMenu">
             <label for="width-spinner">Path width (max: 100):</label><input id="width-spinner" name="value">
             <div class="btn-group">
+		<button id="edgeDelBtn" class="btn btn-danger">Delete</button>
                 <button id="edgeCloseBtn" class="btn btn-primary">Close</button>
             </div>
         </div>
@@ -228,7 +229,7 @@
         var edge_id = $("#edgeMenu").attr("edge_id");
         console.log(edge_id);
         edges[edge_id].guideLine.strokeWidth($( "#width-spinner" ).spinner("value"));
-        rootLayer.draw();
+        edgeLayer.draw();
     }
 
     function bboxSpinnerChange(event, ui){
@@ -363,6 +364,13 @@
         $("#nodeMenu button").hide();
         $("#nodeMenu").hide();
     });
+
+    $("#edgeDelBtn").click(function(e){
+	var id = $("#edgeMenu").attr("edge_id");
+	edges[id].deleteEdge();
+	$("#edgeMenu").attr("edge_id", "");
+	$("#edgeMenu").hide();
+    });	
 
     $("#edgeCloseBtn").click(function(e){
         $("#edgeMenu").hide();

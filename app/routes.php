@@ -161,7 +161,7 @@ $count = 0;
     //insert edges
     foreach($edges as $edge) {
 	$count++;
-        DB::insert("insert into edges (start_node_fk, end_node_fk, floor, edge_width, building_fk) values (?, ?, ?, ?, ?)", array($edge["startNode"], $edge["endNode"], $floor_id, $edge["edgeWidth"], $bldg_fk));
+        DB::insert("insert into edges (start_node_fk, end_node_fk, floor, edge_width, building_fk, offsetX, offsetY) values (?, ?, ?, ?, ?, ?, ?)", array($edge["startNode"], $edge["endNode"], $floor_id, $edge["edgeWidth"], $bldg_fk, $edge["offsetX"], $edge["offsetY"]));
     }
 
 echo $count . " added.\n";
@@ -214,7 +214,7 @@ Route::post('floors/loadFloorplan/{bldg_id}/{floor_id}', array('as' => 'loadFloo
     //print_r($nodes);
 
     //Get edges
-    if($result = DB::select("select start_node_fk, end_node_fk, edge_width from edges where floor = ? and building_fk = ?", array($floor_id, $bldg_id))) {
+    if($result = DB::select("select start_node_fk, end_node_fk, edge_width, offsetX, offsetY from edges where floor = ? and building_fk = ?", array($floor_id, $bldg_id))) {
         foreach($result as $row){
             array_push($edges, $row);
         }
