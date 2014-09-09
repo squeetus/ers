@@ -183,6 +183,14 @@
 
 <script type="text/javascript">
 
+    //This event handler ensures that the footer stays properly positioned on iPads 
+    //(The on-screen keyboard was previously interfering with the fixed:bottom css)
+    $(document).on('blur', 'input, textarea', function() {
+   	setTimeout(function() {
+            window.scrollTo(document.body.scrollLeft, document.body.scrollTop);
+   	}, 0);
+    });
+
     var floorId = "{{{ $floor_id }}}"; //The current floor
     var bldgId = "{{{ $bldg_id }}}"
     var selectedTool; //Currently selected tool

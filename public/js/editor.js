@@ -506,8 +506,7 @@ function Node(x, y, id, type, attr) {
 	this.attr = attr;
     }
 
-    console.log(this.id, this.type, this.x, this.y);
-
+    console.log(this.id, this.type, this.x, this.y, this.attr["name"]);
     //Increment node counter
     node_count++;
 
@@ -787,7 +786,7 @@ Node.prototype.render = function(x, y, r){
         //rootLayer.draw();
         
 	this.visual.id = this.id;
-        //showTextForNode(this, this.attr["name"]);
+        showTextForNode(this, this.attr["name"]);
         this.setupNode(x, y, node_radius);
 
         //currentNode = this;	
@@ -819,7 +818,7 @@ Node.prototype.render = function(x, y, r){
 	    
 	    nodeLayer.draw();
 	
-            //showTextForNode(_self, _self.attr["name"]);
+            showTextForNode(_self, _self.attr["name"]);
         
 	    _self.visual.id = _self.id;
        //     console.log("rendered");
@@ -831,7 +830,7 @@ Node.prototype.render = function(x, y, r){
         var height = _self.attr["height"];
         
 	if(this.type== "room") {
-	        this.bbox = new Kinetic.Rect({
+	    this.bbox = new Kinetic.Rect({
 	        x: x,
                 y: y,
                 strokeWidth: 2,
@@ -844,8 +843,25 @@ Node.prototype.render = function(x, y, r){
 		doors: {}
             });
 	    this.bbox.parentNode = this; 
+//	    this.contextToolbar = new Kinetic.Rect({
+//		x: x-25,
+//		y: y-75,
+//		strokeWidth: 1,
+//		stroke: "black",
+//		fill: "purple",
+//		listening: true,
+//		width: 25,
+//		height: 25
+//	    });
 	    setupRoom(this.bbox);
 
+//	    this.contextToolbar.hide();
+//	    this.contextToolbar.parentNode = this;
+//	    this.contextToolbar.on(tap, function () {
+//		this.parentNode.bbox.rotate(22.5);
+//	    });
+
+//	    roomLayer.add(this.contextToolbar);
             roomLayer.add(this.bbox);
             roomLayer.draw();
         }
@@ -909,11 +925,13 @@ function setupRoom(room) {
 	    	selectedRoom.fill('green');
 	    	this.guideCircle.moveToTop();
 	    	this.guideCircle.show();
+		//this.parentNode.contextToolbar.show();
             } else {
 	        if(selectedRoom == this) {
             	    selectedRoom = null;
             	    this.fill('grey');
 	   	    this.guideCircle.hide();
+		    //this.parentNode.contextToolbar.hide();
                 } else {
                     selectedRoom.fill('grey');
 	    	    selectedRoom.guideCircle.hide();
@@ -921,6 +939,7 @@ function setupRoom(room) {
 		    selectedRoom.fill('green');
 		    this.guideCircle.moveToTop();
 		    this.guideCircle.show();
+		    //this.parentNode.contextToolbar.show();
 	         }
 	     }
 	} else {
@@ -942,7 +961,8 @@ function setupRoom(room) {
 	
 		if(edges[edge_id] != null || edges[alt_edge_id] != null) {
 		    //edge exists, cancel join
-		    stage.linkStart.visual.fill(nodeColor.blue);
+		    if(stage.linkStart.type != 'room')
+			stage.linkStart.visual.fill(nodeColor.blue);
 		    console.log("Canceling join");
 		    stage.linkStart = null;
 	 	    stage.linkEnd = null;
