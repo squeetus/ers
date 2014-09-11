@@ -11,17 +11,19 @@
 |
 */
 
-Route::post('/tmpFloorplanUpload', function(){
+Route::post('/tmpFloorplanUpload/{bldg_id}/{floor_id}', function($bldg_id, $floor_id){
     $file = Input::file('image');
     $destinationPath = "tmp/";
 
     //Create unique filename based on current time (in ms)
-    $filename = "tmp_" . round(microtime(true) * 1000);
+    //$filename = "tmp_" . round(microtime(true) * 1000);
+    $filename = $bldg_id."_".$floor_id."_floorplan";
     $extension = '.'.$file->getClientOriginalExtension();
     Input::file('image')->move($destinationPath, $filename.$extension);
 
     //Return path of image
-    echo "http://localhost/ers/public/tmp/".$filename.$extension;
+    $url = "../../tmp/".$filename.$extension;
+    echo $url;
 });
 
 Route::get('/', function()
@@ -108,24 +110,16 @@ Route::post('floors/saveFloorplan/{id}', function($id){
     $decoded = json_decode($data, true);
 
     $bldg_fk = $decoded["bldg_fk"];
-    //$img_url = $decoded["image"];
+    $img_url = $decoded["image"];
     //$width   = $decoded["width"];
     //$height  = $decoded["height"];
     $counter = $decoded["node_count"];
     $floor_id = $id;
 
-echo $bldg_fk . " " . $floor_id . "\n";
 
-if($result = DB::select("select count(*) as count from edges where building_fk = ?", array($bldg_fk))) {
-echo $result[0]->count . "\n";
-} else {
-echo "problem \n";
-}
     //remove existing floor data from DB
     DB::delete("delete from nodes where floor = ? and building_fk = ?", array($floor_id, $bldg_fk));
     //DB::delete("delete from edges where floor = ? and building_fk = ?", array($floor_id, $bldg_fk));
-
-echo "deleted from floor, building\n";
 
     //insert nodes
     $nodes = $decoded["nodes"];
@@ -151,20 +145,11 @@ echo "deleted from floor, building\n";
         }
     }
 
-if($result = DB::select("select count(*) as count from edges where building_fk = ?", array($bldg_fk))) {
-echo $result[0]->count . "\n"; 
-} else {
-echo "problem \n";
-}
-
-$count = 0;
     //insert edges
     foreach($edges as $edge) {
-	$count++;
         DB::insert("insert into edges (start_node_fk, end_node_fk, floor, edge_width, building_fk, offsetX, offsetY) values (?, ?, ?, ?, ?, ?, ?)", array($edge["startNode"], $edge["endNode"], $floor_id, $edge["edgeWidth"], $bldg_fk, $edge["offsetX"], $edge["offsetY"]));
     }
 
-echo $count . " added.\n";
 });
 
 Route::post('floors/loadFloorplan/{bldg_id}/{floor_id}', array('as' => 'loadFloorplan', function($bldg_id, $floor_id) {
@@ -175,7 +160,7 @@ Route::post('floors/loadFloorplan/{bldg_id}/{floor_id}', array('as' => 'loadFloo
 			"max_y" => null,
 			"min_x" => null,
 			"min_y" => null);
-		      //"image" => null,
+		      	//"image" => null,
                       //"width" => null,
                       //"height" => null,
                       //"latitude" => null,
@@ -190,7 +175,7 @@ Route::post('floors/loadFloorplan/{bldg_id}/{floor_id}', array('as' => 'loadFloo
 	$metadata["min_x"] = $result[0]->minX;
 	$metadata["min_y"] = $result[0]->minY;
 
-    //	$metadata["image"] = $result[0]->image_url;
+//    	$metadata["image"] = $result[0]->image_url;
     //    $metadata["width"] = $result[0]->width;
     //    $metadata["height"] = $result[0]->height;
     //    $metadata["latitude"] = $result[0]->latitude;

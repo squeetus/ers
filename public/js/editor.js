@@ -830,6 +830,8 @@ Node.prototype.render = function(x, y, r){
         var height = _self.attr["height"];
         
 	if(this.type== "room") {
+	    this.roomGroup = new Kinetic.Group();
+
 	    this.bbox = new Kinetic.Rect({
 	        x: x,
                 y: y,
@@ -842,26 +844,31 @@ Node.prototype.render = function(x, y, r){
 		guideCircle: null,
 		doors: {}
             });
+
+	    this.roomGroup.add(this.bbox);
 	    this.bbox.parentNode = this; 
-//	    this.contextToolbar = new Kinetic.Rect({
-//		x: x-25,
-//		y: y-75,
-//		strokeWidth: 1,
-//		stroke: "black",
-//		fill: "purple",
-//		listening: true,
-//		width: 25,
-//		height: 25
-//	    });
+	    //this.contextToolbar = new Kinetic.Rect({
+		//x: x-25,
+		//y: y-75,
+		//strokeWidth: 1,
+		//stroke: "black",
+		//fill: "purple",
+		//listening: true,
+		//width: 25,
+		//height: 25
+	    //});
+	    //this.roomGroup.add(this.contextToolbar);
 	    setupRoom(this.bbox);
 
-//	    this.contextToolbar.hide();
-//	    this.contextToolbar.parentNode = this;
-//	    this.contextToolbar.on(tap, function () {
-//		this.parentNode.bbox.rotate(22.5);
-//	    });
+	    //this.contextToolbar.hide();
+	    //this.contextToolbar.parentNode = this;
+	    //this.contextToolbar.on(tap, function () {
+		//console.log("rotating", this.parentNode.roomGroup);
+		//this.parentNode.roomGroup.setRotationDeg(22.5);
+		//roomLayer.draw();
+	    //});
 
-//	    roomLayer.add(this.contextToolbar);
+	    //roomLayer.add(this.contextToolbar);
             roomLayer.add(this.bbox);
             roomLayer.draw();
         }
@@ -882,6 +889,8 @@ function setupRoom(room) {
 	strokeWidth: 2,
 	draggable: true
     });
+
+    room.parentNode.roomGroup.add(room.guideCircle);
 
     room.guideCircle.on("dragmove", function () {
     	var pos = this.getPosition();
@@ -1423,9 +1432,9 @@ function saveData(){
 
     //console.log("Floor dim: ", floorWidth, floorHeight);
 
-    //var imgUrl = imgObj != null ? imgObj.src : null;
+    var imgUrl = imgObj != null ? imgObj.src : null;
 
-    if(node_count == 0) {
+    if(node_count == 0 && imgUrl == null) {
 	makeAlert("No data to save", 2);
 	return;
     }
@@ -1433,7 +1442,7 @@ function saveData(){
     getWidthHeight();
 
     var graph = {"bldg_fk": bldgId,
-                 //"image"  : imgUrl,
+                 "image"  : imgUrl,
                  //"width"  : floorWidth,
                  //"height" : floorHeight,
                  "nodes"  : nodes,
@@ -1465,7 +1474,6 @@ function loadData(){
     //Fetch data
     $.ajax({
         type: "POST",
-        //url: "http://localhost/ers/public/floors/loadFloorplan" + "/" + bldgId + "/" + floorId,
 	url: "../../floors/loadFloorplan/"+bldgId+"/"+floorId,
 	success: function(data) {
             //console.log(data);
@@ -1487,8 +1495,12 @@ function loadGraph(data) {
 
     //Add background image
     //var imageUrl = data["meta"]["image"];
-    //loadImage(imageUrl);
-
+    var imageUrl = "../../tmp/" + bldgId + "_" + floorId + "_floorplan.jpg"; 
+    try {
+	loadImage(imageUrl);
+    } catch(e) {
+	console.log("no image found for this building/floor combination.");
+    }
     //var width = data["meta"]["width"];
     //var height = data["meta"]["height"];
     

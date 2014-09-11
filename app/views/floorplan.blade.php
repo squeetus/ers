@@ -264,7 +264,7 @@
 
     //Show background form upload box
     $("#bg").click(function(e){
-        console.log("Showing upload box");
+        //console.log("Showing upload box");
         $("#imgBox").css({"left": 85, "top": $("#bg").position().top + 80}).fadeIn(250);
     });
 
@@ -273,8 +273,9 @@
         e.preventDefault();
         var formData = new FormData($('#imgForm')[0]);
         $.ajax({
-            url: "{{{ URL::to('/tmpFloorplanUpload') }}}",
-            type: 'POST',
+            //url: "{{{ URL::to('/tmpFloorplanUpload/') }}}",
+            url: "../../tmpFloorplanUpload/"+bldgId+"/"+floorId,
+	    type: 'POST',
             data: formData,
             cache: false,
             contentType: false,
@@ -289,28 +290,37 @@
     });
 
     function loadImage(uri) {
-        if(imgObj == null){
-            imgObj = new Image();
-            console.log("Image object is null");
-            //Resize stage to fit image
-            imgObj.onload = function() {
-                img = new Kinetic.Image({
-                    image: imgObj,
-                    x: 0,
-                    y: 0
-                });
-                bgLayer = new Kinetic.Layer({listening: false});
-                bgLayer.add(img);
-                stage.add(bgLayer);
-                bgLayer.moveToBottom();
-            }
-            imgObj.src = uri;
-        }
-        else {
-            console.log("Setting source");
-            imgObj.src = uri;
-            bgLayer.draw();
-        }
+	$.ajax({
+            url: uri,
+            success: function(data) {
+
+            	if(imgObj == null){
+            	    imgObj = new Image();
+            	    //console.log("Image object is null");
+            	    //Resize stage to fit image
+            	    imgObj.onload = function() {
+                    	img = new Kinetic.Image({
+                    	    image: imgObj,
+                    	    x: 0,
+                    	    y: 0
+                   	 });
+                    	bgLayer = new Kinetic.Layer({listening: false});
+                    	img.scale({x:3,y:3});
+		    	bgLayer.add(img);
+                    	stage.add(bgLayer);
+                    	bgLayer.moveToBottom();
+            	    }
+	    	    imgObj.src = uri;
+	    	} else {
+            	    //console.log("Setting source");
+            	    imgObj.src = uri;
+            	    bgLayer.draw();
+                }
+	    },
+	    error: function(data) {
+		console.log("Ignore 404 warning. (No background image)");
+	    }
+	});
     }
 
     $("#updateBtn").click(function(e){
