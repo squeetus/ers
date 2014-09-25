@@ -124,12 +124,20 @@
         <div id="imgBox">
                 <form id="imgForm">
                 <div class="form-group">
-                    <input id ="img" type="file" name ='image' value="Load image"  style="padding-bottom: 5px;"/>
-                    <div class="btn-group">
+		  <table><tr><td>
+                      <input id ="img" type="file" name ='image' value="Load image"  style="padding-bottom: 5px;"/>
+                    </td><td>
+		      <button type="button" id="scaleUp" class="btn btn-default">^</button>
+		    </td></tr><tr><td>
+		      <div class="btn-group">
                         <button id="imgUpload" class="btn btn-primary">Upload</button>
                         <button type="button" id="imgCancel" class="btn btn-warning">Cancel</button>
                         <button type="button" id="imgDelete" class="btn btn-danger">Delete</button>
-                    </div>
+                      </div>
+		    </td><td>
+		      <button type="button" id="scaleDown" class="btn btn-default">v</button>
+	  	    </td></tr>
+		  </table>
                 </div>
                 </form>
         </div>
@@ -305,7 +313,6 @@
                     	    y: 0
                    	 });
                     	bgLayer = new Kinetic.Layer({listening: false});
-                    	img.scale({x:3,y:3});
 		    	bgLayer.add(img);
                     	stage.add(bgLayer);
                     	bgLayer.moveToBottom();
@@ -405,6 +412,35 @@
         bgLayer.draw();
         $("#imgBox").fadeOut(250);
     });
+
+    $("#scaleUp").click(function(e){
+	if(img != null){
+	    var scale = img.scale();
+	    if(scale.x < 6 && scale.y < 6) {
+	        scale.x++;
+	    	scale.y++;
+	    }
+	    img.scale({x:scale.x,y:scale.y});
+	    bgLayer.draw();
+	} else {
+	    console.log("No image to scale");
+	} 
+    });
+
+    $("#scaleDown").click(function(e){
+        if(img != null){
+            var scale = img.scale();
+	    if(scale.x > 1 && scale.y > 1) {
+	    	scale.x--;
+	    	scale.y--;
+	    }
+            img.scale({x:scale.x,y:scale.y});
+            bgLayer.draw();
+        } else {
+            console.log("No image to scale");
+        } 
+    });
+
 
     function isTouchDevice(){
         return typeof window.ontouchstart !== 'undefined';

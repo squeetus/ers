@@ -80,29 +80,22 @@ function redrawAll() {
 
 //Stage drag offset
 stage.on(touchstart, function(e){
+    //console.log(touchstart);
     if(e.evt != undefined) {e.evt.cancelBubble = true} else {e.cancelBubble = true};
     stage.startX = stage.x();
     stage.startY = stage.y();
-}).on(touchend, function(e){
+    lastDist = 0;
+}).on(touchmove, function(e){
     offsetX = stage.x();
     offsetY = stage.y();
-    //console.log(offsetX, offsetY);
-    stage.lastDragDistance = Math.sqrt(Math.pow(offsetX - stage.startX, 2) + Math.pow(offsetY - stage.startY, 2));
-    //console.log(stage.lastDragDistance);
+    //stage.lastDragDistance = Math.sqrt(Math.pow(offsetX - stage.startX, 2) + Math.pow(offsetY - stage.startY, 2));
+    lastDist += Math.sqrt(Math.pow(offsetX - stage.startX, 2) + Math.pow(offsetY - stage.startY, 2));
     stage.startX = stage.x();
     stage.startY = stage.y();
-});//.on(touchmove, function(e){
-    //console.log(stage.getAbsolutePosition());
 
-    //Prevent negative node coordinates
-   // if(stage.getAbsolutePosition().x > 0) {
-       // stage.x(0);
-    //}
-
-   // if(stage.getAbsolutePosition().y > 0) {
-        //stage.y(0);
-    //}
-//});
+}).on(touchend, function(e){
+//    console.log(lastDist);
+});
 
 // **** Zoom methods *****
 stage.getContent().addEventListener("mousewheel", wheelZoom, false);
@@ -139,6 +132,7 @@ stage.getContent().addEventListener('touchmove', function(evt) {
 
 // **** Stage tap interaction ****
 $(stage.getContent()).on(tap, function(evt) {
+    console.log("Stage Tap");
     handleStageTap(evt);
 });
 
@@ -383,11 +377,16 @@ function handleStageTap(evt) {
     var y = touchPos.y;
 
     //Don't place a node if the movement of the stage was significant (pan)
-    if(stage.lastDragDistance > 10) {
-        console.log(stage.lastDragDistance);
-        stage.lastDragDistance = 0;
-        return;
+//    if(stage.lastDragDistance > 10) {
+    if(lastDist > 10) {
+        //console.log(stage.lastDragDistance);
+        //stage.lastDragDistance = 0;
+        lastDist = 0;
+	return;
     }
+
+    if(selectedRoom != null)
+	return;
 
     //Handle node link
     if(stage.guideDrag || is_adding_node) {
@@ -475,11 +474,11 @@ function handleStageTap(evt) {
 	
 	    var iOS = ['iPad', 'iPhone', 'iPod'].indexOf(navigator.platform) >= 0;
 
-	    if(iOS) {
+	    //if(iOS) {
 	    	setNodeColor(nodeColor.yellow);
-	    } else {
-		drawGuide(x, y, x, y, id, selectedTool);
-	    }
+	    //} else {
+		//drawGuide(x, y, x, y, id, selectedTool);
+	    //}
         }
     }
 }
