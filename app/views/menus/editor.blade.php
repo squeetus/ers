@@ -31,12 +31,12 @@
             <li><a href="#"><span id="save" class="glyphicon glyphicon-floppy-disk"></span></a></li>
             <li><a href="#"><img id="path" class="tool" src="{{ asset('img/pathtool.png') }}" /></a></li>
             <li><a href="#"><img id="link" class="tool" src="{{ asset('img/linktool.png') }}" /></a></li>
-            <li><a href="#"><img id="node" class="tool" src="{{ asset('img/junctiontool.png') }}"/></a></li>
-            <li><a href="#"><img id="room" class="tool" src="{{ asset('img/roomtool.png') }}" /></a></li>
-            <li><a href="#"><img id="entrance" class="tool" src="{{ asset('img/entrancetool.png') }}" /></a></li>
-            <li><a href="#"><img id="fire" class="tool" src="{{ asset('img/firetool.png') }}" /></a></li>
-            <li><a href="#"><img id="elevator" class="tool" src="{{ asset('img/elevatortool.png') }}"/></a></li>
-            <li><a href="#"><img id="stair" class="tool" src="{{ asset('img/stairtool.png') }}" /></a></li>
+            <li><a href="#"><img id="Node" class="tool" src="{{ asset('img/junctiontool.png') }}"/></a></li>
+            <li><a href="#"><img id="Room" class="tool" src="{{ asset('img/roomtool.png') }}" /></a></li>
+            <li><a href="#"><img id="Entrance" class="tool" src="{{ asset('img/entrancetool.png') }}" /></a></li>
+            <li><a href="#"><img id="Fire" class="tool" src="{{ asset('img/firetool.png') }}" /></a></li>
+            <li><a href="#"><img id="Elevator" class="tool" src="{{ asset('img/elevatortool.png') }}"/></a></li>
+            <li><a href="#"><img id="Stair" class="tool" src="{{ asset('img/stairtool.png') }}" /></a></li>
 
         </ul>
     </div><!-- /.navbar-collapse -->

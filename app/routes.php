@@ -127,15 +127,15 @@ Route::post('floors/saveFloorplan/{id}', function($id){
 
     foreach($nodes as $node) {
         $name = "";
-        $type = "node";
+        $type = "Hallway";
 
-        if ($node["type"] != "node" && $node["type"] != "Hallway") {
+        if ($node["type"] != "Hallway") {
             //$name = $node["attr"]["name"];
             $name = $node["name"];
 	    $type = $node["type"];
         }
 
-        if($node["type"] != "room") {
+        if($node["type"] != "Room") {
 	    DB::insert("insert into nodes (x_pos, y_pos, z_pos, floor, node_id, name, type, building_fk) values (?, ?, ?, ?, ?, ?, ?, ?)", array($node["x"], $node["y"], $node["z"], $floor_id, $node["id"], $name, $type,$bldg_fk));
         } else {
 	    $width = $node["width"];

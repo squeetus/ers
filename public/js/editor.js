@@ -35,9 +35,17 @@ var imgObj = null; //Stage image
 var bounds = initBounds();
 var rootLayer, nodeLayer, edgeLayer, roomLayer, tmpLayer;
 var graphSnapshot = {};
+var lastDistance = 0; //Last drag distance (for moving the stage)
 var lastDist = 0; //Last dragged distance (for touch-zoom)
 var nodeColor = {"blue": '#2B64FF', "yellow": '#E3B912'};
-var nodeImage = {"room": "roomtool.png", "elevator": "elevatortool.png", "stair": "stairtool.png", "fire": "firetool.png", "entrance": "entrancetool.png"}; //Node image names
+var nodeImage = {"Room": "roomtool.png", "Elevator": "elevatortool.png", "Stair": "stairtool.png", "Fire": "firetool.png", "Entrance": "entrancetool.png"}; //Node image names
+var iOS = ['iPad', 'iPhone', 'iPod'].indexOf(navigator.platform) >= 0;
+var clickedEdge = 0;
+
+//Console
+if(typeof console === "undefined"){
+      console = {};
+}
 
 //Create new stage
 var stage = new Kinetic.Stage({
@@ -78,29 +86,35 @@ function redrawAll() {
   roomLayer.batchDraw();
 }
 
+
+var image;
 //Stage drag offset
 stage.on(touchstart, function(e){
     //console.log(touchstart);
     if(e.evt != undefined) {e.evt.cancelBubble = true} else {e.cancelBubble = true};
     stage.startX = stage.x();
     stage.startY = stage.y();
-    lastDist = 0;
+    lastDistance = 0;
+    //disableHitGraph();
 }).on(touchmove, function(e){
+    //if(edgeLayer.hitGraphEnabled()||nodeLayer.hitGraphEnabled())
+	//disableHitGraph();
+	
     offsetX = stage.x();
     offsetY = stage.y();
     //stage.lastDragDistance = Math.sqrt(Math.pow(offsetX - stage.startX, 2) + Math.pow(offsetY - stage.startY, 2));
-    lastDist += Math.sqrt(Math.pow(offsetX - stage.startX, 2) + Math.pow(offsetY - stage.startY, 2));
+    lastDistance += Math.sqrt(Math.pow(offsetX - stage.startX, 2) + Math.pow(offsetY - stage.startY, 2));
     stage.startX = stage.x();
     stage.startY = stage.y();
 
 }).on(touchend, function(e){
 //    console.log(lastDist);
+    //enableHitGraph();
 });
 
 // **** Zoom methods *****
 stage.getContent().addEventListener("mousewheel", wheelZoom, false);
 stage.getContent().addEventListener('touchmove', function(evt) {
-    console.log("Touchmove");
 
     var touch1 = evt.touches[0];
     var touch2 = evt.touches[1];
@@ -122,7 +136,8 @@ stage.getContent().addEventListener('touchmove', function(evt) {
        	$("#scale").html(scale);
       	stage.scale({x: scale, y: scale});
         stage.batchDraw();
-        lastDist = dist;
+        //stage.draw();
+     	lastDist = dist;
     }
   }, false);
 
@@ -132,7 +147,6 @@ stage.getContent().addEventListener('touchmove', function(evt) {
 
 // **** Stage tap interaction ****
 $(stage.getContent()).on(tap, function(evt) {
-    console.log("Stage Tap");
     handleStageTap(evt);
 });
 
@@ -184,8 +198,8 @@ function insertNode(linkerNode, targetNode){
     targetNode = null;
 
     //Remove guide line/node
-    stage.guideNode.destroy();
-    stage.guideLine.destroy();
+    //stage.guideNode.destroy();
+    //stage.guideLine.destroy();
 
     //rootLayer.draw();
     nodeLayer.draw();
@@ -196,7 +210,7 @@ function insertNode(linkerNode, targetNode){
 function cancelLink(){
     var node = nodes[linkerNode.id];
     node.delete();
-    setNodeColor(nodeColor.blue);
+    //setNodeColor(nodeColor.blue);
     linkerNode = null;
     counter--;
     edgeLayer.draw();
@@ -224,10 +238,12 @@ function joinNodes(startNode, endNode, offset) {
     startNode = null;
     endNode = null;
 
-    if(stage.linkStart.type == "node" || stage.linkStart.type == "Hallway")
-    	stage.linkStart.visual.fill(nodeColor.blue);
-    if(stage.linkEnd.type == "node" || stage.linkEnd.type == "Hallway")
-	stage.linkEnd.visual.fill(nodeColor.blue);
+    if(stage.linkStart != null) {	
+        if(stage.linkStart.type == "Hallway")
+    	    stage.linkStart.visual.fill(nodeColor.blue);
+    	if(stage.linkEnd.type == "Hallway")
+	    stage.linkEnd.visual.fill(nodeColor.blue);
+    }
 
     stage.linkStart = null;
     stage.linkEnd   = null;
@@ -240,7 +256,7 @@ function joinNodes(startNode, endNode, offset) {
 //Split an edge when inserting node
 function splitEdge(linkerNode, targetEdge, x , y) {
     //Update the node color for all nodes
-    setNodeColor(nodeColor.blue);
+    //setNodeColor(nodeColor.blue);
 
     var n = targetEdge.splitEdge(x, y);
 
@@ -251,7 +267,6 @@ function splitEdge(linkerNode, targetEdge, x , y) {
 //Draw guide for attaching special nodes to path
 function drawGuide(x1, y1, x2, y2, id, type){
 
-    var iOS = ['iPad', 'iPhone', 'iPod'].indexOf(navigator.platform) >= 0;
     var x = x1;
     var y = y1;
 
@@ -369,24 +384,27 @@ function drawGuide(x1, y1, x2, y2, id, type){
 }
 
 function handleStageTap(evt) {
-//makeAlert(is_adding_node);
-
     var touchPos = getRelativePointerPosition();
 
     var x = touchPos.x;
     var y = touchPos.y;
 
     //Don't place a node if the movement of the stage was significant (pan)
-//    if(stage.lastDragDistance > 10) {
-    if(lastDist > 10) {
+    //if(stage.lastDragDistance > 10) {
+    if(!iOS && lastDistance > 10) {
         //console.log(stage.lastDragDistance);
         //stage.lastDragDistance = 0;
-        lastDist = 0;
+        lastDistance = 0;
 	return;
     }
 
     if(selectedRoom != null)
 	return;
+
+    //Both these lines accomplish the same thing, the latter is a hacky way of doing the former.
+    //For some reason, getIntersection and touchPos aren't working when the stage is moved or zoomed. 
+    if(edgeLayer.getIntersection(touchPos)) return;    
+    if(Date.now()-clickedEdge < 50) return; 
 
     //Handle node link
     if(stage.guideDrag || is_adding_node) {
@@ -394,12 +412,14 @@ function handleStageTap(evt) {
 	is_adding_node = false;
 
         //Link nodes
-	if(nodeLayer.getIntersection({x:x, y:y})) {
-	    if(linkerNode.type == "node")
+	if(nodeLayer.getIntersection(touchPos)) {
+	    if(linkerNode.type == "Hallway")
                 linkerNode.visual.fill("#2B64FF");
-            insertNode(linkerNode, targetNode);
+            tmpNode = nodeLayer.getIntersection(touchPos);
+	    targetNode = nodes[tmpNode.id];
+	    insertNode(linkerNode, targetNode);
 
-	} else if (edgeLayer.getIntersection({x:x, y:y})) {
+	} else if (edgeLayer.getIntersection(touchPos)) {
 	    tmpNode = edgeLayer.getIntersection({x:x,y:y});
 	    targetNode = edges[tmpNode.id];
 	    splitEdge(linkerNode, targetNode, x, y);
@@ -417,7 +437,7 @@ function handleStageTap(evt) {
 
             //Place starting node
             var id = "n" + getNextNodeId();
-            var node = new Node(x, y, id, "node");
+            var node = new Node(x, y, id, "Hallway");
 
             //Add node to our node list
             nodes[id] = node;
@@ -436,7 +456,7 @@ function handleStageTap(evt) {
             counter++; //New node
 
 	    var id = "n" + getNextNodeId();
-            var node = new Node(x, y, id, "node");
+            var node = new Node(x, y, id, "Hallway");
 
             //Add node to the node list
             nodes[id] = node;
@@ -455,7 +475,7 @@ function handleStageTap(evt) {
         }
     }
 
-    //Logic for new path junction (node)
+    //Logic for new special node (room, fire extinguisher, elevator, etc)
     if(selectedTool != undefined && selectedTool != "path" && selectedTool != "link") {
 	if (!is_hovering && !nodeDrag && !is_adding_node) {
             is_adding_node = true;
@@ -463,19 +483,18 @@ function handleStageTap(evt) {
 	    counter++;
 
 	    var id = "n" + getNextNodeId();
+	    console.log(selectedTool);
             var node = new Node(x, y, id, selectedTool);
             nodes[id] = node;
             linkerNode = node;
 
-	    if(selectedTool == "node") {
+	    if(selectedTool == "Hallway") {
 		node.visual.fill("#E3B912");
 	    	nodeLayer.draw();
     	    }
-	
-	    var iOS = ['iPad', 'iPhone', 'iPod'].indexOf(navigator.platform) >= 0;
 
 	    //if(iOS) {
-	    	setNodeColor(nodeColor.yellow);
+	    	//setNodeColor(nodeColor.yellow);
 	    //} else {
 		//drawGuide(x, y, x, y, id, selectedTool);
 	    //}
@@ -538,6 +557,150 @@ function setBounds(x, y) {
     console.log("Bounds: ", bounds);
 }
 
+//---------------------------------------------------
+// ---- Functions to bind to Node event handlers ----
+//---------------------------------------------------
+function hover(x,y){
+    is_hovering = true;
+    $("#xPos").html("<strong>X: </strong>" + Math.round(x));
+    $("#yPos").html("<strong>Y: </strong>" + Math.round(y));
+}
+function unHover() {
+    is_hovering = false;
+    $("#xPos").html("<strong>X: </strong>");
+    $("#yPos").html("<strong>Y: </strong>");
+}
+
+var Delay = 300, clicks = 0, timer = null;
+function nodeTap(e, node){
+    clicks++;
+
+    if(clicks === 1) {
+        timer = setTimeout(function() {
+
+    if(is_adding_node == true && node.type == "Hallway" && linkerNode != node) {
+        is_adding_node = false;
+        nodeDrag = false;
+
+        setNodeColor(nodeColor.blue);
+
+        joinNodes(linkerNode, node);
+
+    } else {
+        console.log(node.id, node.x, node.y);
+        handleNodeTap(e, node);
+    }
+	clicks = 0;
+	}, Delay);
+    } else {
+	clearTimeout(timer);
+	console.log("Double Click");
+	if(selectedTool != "link") {
+	    showMenuForNode(node.visual);
+	}
+	clicks = 0;
+    }
+}
+function moveNode(node, touchOffset) {
+	var touchPos = getRelativePointerPosition();
+        var newX = touchPos.x - touchOffset.x;
+        var newY = touchPos.y - touchOffset.y;
+
+	if(!tmpLayer.hasChildren()) {
+            node.visual.moveTo(tmpLayer);
+	    if(node.bbox != undefined) {
+		node.bbox.moveTo(tmpLayer);
+		node.bbox.guideCircle.moveTo(tmpLayer);
+		node.bbox.moveToBottom();
+	    }
+        }
+
+	//Update position vars of node
+	node.x = newX;
+        node.y = newY;
+        node.visual.setPosition({x:newX, y:newY});
+
+	$("#xPos").html("<strong>X: </strong>" + (node.x));
+        $("#yPos").html("<strong>Y: </strong>" + (node.y));
+
+	//Move node text
+	if(node.text != null) {
+            node.text.x(node.visual.x() - node_text_offset);
+            node.text.y(node.visual.y() - node_text_offset);
+        }
+
+        //Move room BB if set
+        if (node.bbox != undefined) {
+            node.bbox.x(node.visual.x() + node.visual.width()/2);
+            node.bbox.y(node.visual.y() + node.visual.height()/2);
+
+            node.bbox.guideCircle.x(node.bbox.x() + parseFloat(node.bbox.width()) - node.bbox.offsetX());
+            node.bbox.guideCircle.y(node.bbox.y() + parseFloat(node.bbox.height()) - node.bbox.offsetY());
+            roomLayer.batchDraw();
+        }
+
+        //Update positions of connected edges
+        for(var x in node.edges){
+            edges[node.edges[x]].setPosition();
+        }
+
+	tmpLayer.batchDraw();
+}
+
+function finalizeNodePos(node, touchOffset) {
+	currentNode = node;
+
+        var loc = node.visual.getPosition();
+        var newX = roundToNearest(loc.x, default_snap_tolerance);
+        var newY = roundToNearest(loc.y, default_snap_tolerance);
+        node.x = newX;
+        node.y = newY;
+        node.visual.setPosition({x:newX, y:newY});
+
+        //Move node text
+        if(node.text != null && node.text.attrs.text != "") {
+            node.text.x(node.visual.x() - node_text_offset);
+            node.text.y(node.visual.y() - node_text_offset);
+        }
+
+        //Move room BB if set
+        if (node.bbox != undefined) {
+            node.bbox.x(node.visual.x() + node.visual.width()/2);
+            node.bbox.y(node.visual.y() + node.visual.height()/2);
+
+            node.bbox.guideCircle.x(node.bbox.x() + parseFloat(node.bbox.width()) - node.bbox.offsetX());
+            node.bbox.guideCircle.y(node.bbox.y() + parseFloat(node.bbox.height()) - node.bbox.offsetY());
+
+            roomLayer.batchDraw();
+        }
+
+        //Update positions of connected edges
+        for(var x in node.edges){
+            edges[node.edges[x]].setPosition();
+        }
+
+        if(tmpLayer.hasChildren()) {
+            tmpLayer.batchDraw();
+            node.visual.moveTo(nodeLayer);
+	    if(node.bbox != undefined) {
+		node.bbox.moveTo(roomLayer);
+		node.bbox.guideCircle.moveTo(roomLayer);
+	    }
+        }
+
+        //tmpLayer.destroy();   
+        nodeLayer.batchDraw();
+
+        $("#xPos").html("<strong>X: </strong>");
+        $("#yPos").html("<strong>Y: </strong>");
+
+        nodeDrag = false;
+        //console.log(nodeDrag);
+}
+//------------------------------------------------
+//------------------------------------------------
+
+
 //Set up various attributes and event bindings for shape
 Node.prototype.setupNode = function (x, y) {
 
@@ -545,158 +708,39 @@ Node.prototype.setupNode = function (x, y) {
     var _self = this;
     var c = this.visual;
 
-    c.on('mouseenter', function(e){
-        is_hovering = true;
-	//Math.round(c.x()) vs  _self.x
-	//console.log("hover:",_self.x, _self.y);
-        $("#xPos").html("<strong>X: </strong>" + Math.round(c.x()));
-        $("#yPos").html("<strong>Y: </strong>" + Math.round(c.y()));
-	//	$("#name").html("<strong>Name: </strong>" + c.type + " " + c.id);
-
-    }).on('mouseleave', function(e){
-        is_hovering = false;
-        $("#xPos").html("<strong>X: </strong>");
-        $("#yPos").html("<strong>Y: </strong>");
-	//	$("#name").html("<strong>Name: </strong>");
+    c.on('mouseenter', function(e) {
+	return hover(c.x(), c.y());
     });
-
-    c.on(tap, function(e){
-	if(is_adding_node == true && _self.type == "node" && linkerNode != _self) {
-	    is_adding_node = false;
-	    nodeDrag = false;
-	
-	    setNodeColor(nodeColor.blue);	    
-
-	    joinNodes(linkerNode, _self);
-	
-	} else {
-	    console.log(_self.id, _self.x, _self.y);	
-	    handleNodeTap(e, _self);
-	}
+    c.on('mouseleave', function(e) {
+	return unHover();
     });
-
-    c.on(dbltap, function(e){
-        console.log(_self.id, _self.x, _self.y);
-        if(selectedTool != "link"){
-            showMenuForNode(c);
-        }
+    c.on(tap, function(e) {
+	return nodeTap(e, _self);
+    });
+    c.on(dbltap, function(e) {
+	//if(selectedTool != "link") {
+ 	  //  showMenuForNode(c);
+	//}
+	if(e.evt != undefined) {e.evt.preventDefault()} else {e.preventDefault()};	
     });
 
     var touchOffset, touchPos;
-    //tmpLayer = new Kinetic.Layer();
-    //stage.add(tmpLayer);
-
 
     //Drag event
     c.on(touchstart, function(e){
 	nodeDrag = true;
-	//c.moveTo(tmpLayer);dd
 	touchPos = getRelativePointerPosition();
 	touchOffset = {
 	    x: Math.abs(_self.x - touchPos.x),
 	    y: Math.abs(_self.y - touchPos.y)
 	};
-	//console.log("offset",touchOffset.x, touchOffset.y);
-	//console.log("touchPos", touchPos.x, touchPos.y);
         //Event structure varies between mobile and desktops
         if(e.evt != undefined) {e.evt.cancelBubble = true} else {e.cancelBubble = true};
-    }).on(touchmove, function(e){
-        var touchPos = getRelativePointerPosition();
-	var newX = touchPos.x - touchOffset.x;
-	var newY = touchPos.y - touchOffset.y;
-
-	//console.log(tmpLayer.hasChildren());
-	if(!tmpLayer.hasChildren()) {
-	    c.moveTo(tmpLayer); 	
-	}
-
-	//Adjust offset based on node type
-	//if(_self.type != "node" && _self.type != "Hallway"){
-        //    newX += node_img_size / 2;
-        //    newY += node_img_size / 2;
-        //}
-
-        //Update position vars of node
-        _self.x = newX;
-        _self.y = newY;
-	this.setPosition({x:newX, y:newY});
-	
-        $("#xPos").html("<strong>X: </strong>" + (_self.x));
-        $("#yPos").html("<strong>Y: </strong>" + (_self.y));
-
-        //Move node text
-        if(_self.text != null) {
-            //console.log("Setting text position");
-            _self.text.x(_self.visual.x() - node_text_offset);
-            _self.text.y(_self.visual.y() - node_text_offset);
-        }
-
-        //Move room BB if set
-        if (_self.bbox != undefined) {
-	    _self.bbox.x(_self.visual.x() + _self.visual.width()/2);
-            _self.bbox.y(_self.visual.y() + _self.visual.height()/2);
-
-	    _self.bbox.guideCircle.x(_self.bbox.x() + parseFloat(_self.bbox.width()) - _self.bbox.offsetX());
-	    _self.bbox.guideCircle.y(_self.bbox.y() + parseFloat(_self.bbox.height()) - _self.bbox.offsetY());
-
-   	    roomLayer.batchDraw();
-        }
-
-        //Update positions of connected edges
-        for(var x in _self.edges){
-            edges[_self.edges[x]].setPosition();
-        }
-
-	//nodeLayer.batchDraw();
-	tmpLayer.batchDraw();
-
+    }).on(touchmove, function(e) {
+	return moveNode(_self, touchOffset);
     }).on(touchend, function(e){
         if(e.evt != undefined) {e.evt.cancelBubble = true} else {e.cancelBubble = true};
-        currentNode = _self;
-
-	var loc = this.getPosition();
-	var newX = roundToNearest(loc.x, default_snap_tolerance);
-	var newY = roundToNearest(loc.y, default_snap_tolerance);
-	_self.x = newX;
-	_self.y = newY;
-	this.setPosition({x:newX, y:newY});
-
-	//Move node text
-        if(_self.text != null) {
-            console.log("Setting text position");
-            _self.text.x(_self.visual.x() - node_text_offset);
-            _self.text.y(_self.visual.y() - node_text_offset);
-        }
-
-        //Move room BB if set
-        if (_self.bbox != undefined) {
-            _self.bbox.x(_self.visual.x() + _self.visual.width()/2);
-            _self.bbox.y(_self.visual.y() + _self.visual.height()/2);
-
-            _self.bbox.guideCircle.x(_self.bbox.x() + parseFloat(_self.bbox.width()) - _self.bbox.offsetX());
-            _self.bbox.guideCircle.y(_self.bbox.y() + parseFloat(_self.bbox.height()) - _self.bbox.offsetY());
-
-            roomLayer.batchDraw();
-        }
-
-        //Update positions of connected edges
-        for(var x in _self.edges){
-            edges[_self.edges[x]].setPosition();
-        }
-	
-	if(tmpLayer.hasChildren()) {
-            tmpLayer.batchDraw();
-	    c.moveTo(nodeLayer);
-	}
-
-	//tmpLayer.destroy();	
-	nodeLayer.batchDraw();
-
-        $("#xPos").html("<strong>X: </strong>");
-        $("#yPos").html("<strong>Y: </strong>");
-
-	nodeDrag = false;
-	//console.log(nodeDrag);
+    	return finalizeNodePos(_self, touchOffset);
     });
 };
 
@@ -705,14 +749,14 @@ function handleNodeTap(e, obj) {
     if(e.evt != undefined) {e.evt.cancelBubble = true} else {e.cancelBubble = true};
 
     if(stage.linkStart != null && obj.id == stage.linkStart.id) {
-        if(obj.type == "node" )
+        if(obj.type == "Hallway" )
 	    obj.visual.fill("#2B64FF");
         stage.linkStart = null;
         //rootLayer.draw();
 	nodeLayer.draw();
         return;
     } else if (stage.linkEnd != null && obj.id == stage.linkEnd.id) {
-        if(obj.type == "node")
+        if(obj.type == "Hallway")
 	    obj.visual.fill("#2B64FF");
         stage.linkStart = null;
         //rootLayer.draw();
@@ -724,7 +768,7 @@ function handleNodeTap(e, obj) {
     if(selectedTool == "link" && stage.linkStart == null) {
         stage.linkStart = obj;
 	console.log(obj.type);
-	if(obj.type == "node" || obj.type == "Hallway")
+	if(obj.type == "Hallway")
             obj.visual.fill("#E3B912");
         console.log("Set stage.linkStart");
     }
@@ -742,7 +786,7 @@ function handleNodeTap(e, obj) {
             return;
         } else {
             stage.linkEnd = obj;
-	    if(obj.type == "node" || obj.type == "Hallway")
+	    if(obj.type == "Hallway")
 	    	obj.visual.fill("#E3B912");	
             //Link nodes
             console.log("Set stage.linkEnd");
@@ -765,7 +809,7 @@ Node.prototype.render = function(x, y, r){
 
     var _self = this;
 
-    if(this.type == "node" || this.type == "Hallway"){
+    if(this.type == "Hallway"){
         this.visual = new Kinetic.Circle({
             x: x,
             y: y,
@@ -823,12 +867,15 @@ Node.prototype.render = function(x, y, r){
        //     console.log("rendered");
         }
 
-        image.src = '../../img/' + this.type + 'tool.png';
+	if(this.type == "Node")
+	    image.src = '../../img/junctiontool.png';
+	else
+            image.src = '../../img/' + this.type.toLowerCase() + 'tool.png';
 
         var width = _self.attr["width"];
         var height = _self.attr["height"];
         
-	if(this.type== "room") {
+	if(this.type== "Room") {
 	    this.roomGroup = new Kinetic.Group();
 
 	    this.bbox = new Kinetic.Rect({
@@ -846,28 +893,8 @@ Node.prototype.render = function(x, y, r){
 
 	    this.roomGroup.add(this.bbox);
 	    this.bbox.parentNode = this; 
-	    //this.contextToolbar = new Kinetic.Rect({
-		//x: x-25,
-		//y: y-75,
-		//strokeWidth: 1,
-		//stroke: "black",
-		//fill: "purple",
-		//listening: true,
-		//width: 25,
-		//height: 25
-	    //});
-	    //this.roomGroup.add(this.contextToolbar);
 	    setupRoom(this.bbox);
 
-	    //this.contextToolbar.hide();
-	    //this.contextToolbar.parentNode = this;
-	    //this.contextToolbar.on(tap, function () {
-		//console.log("rotating", this.parentNode.roomGroup);
-		//this.parentNode.roomGroup.setRotationDeg(22.5);
-		//roomLayer.draw();
-	    //});
-
-	    //roomLayer.add(this.contextToolbar);
             roomLayer.add(this.bbox);
             roomLayer.draw();
         }
@@ -953,13 +980,13 @@ function setupRoom(room) {
 	} else {
 	    //LOGIC FOR ADDING LINKS (NEW NODES OR NEW LINKS) TO ROOM BY TAPPING BBOX
 	    if(stage.linkStart != null && stage.linkStart.id != room.parentNode.id) {
-		console.log("ADD ME");
+		nodeDrag = false;
+		//console.log("ADD ME");
 		var touchPos = getRelativePointerPosition();
      	        touchPos.x = roundToNearest(touchPos.x, default_snap_tolerance);
        		touchPos.y = roundToNearest(touchPos.y, default_snap_tolerance);
 
-
-		console.log(room.x(), room.y(), room.width(), room.height());
+		//console.log(room.x(), room.y(), room.width(), room.height());
 
 	    	var offset = {x: touchPos.x - room.parentNode.x, y: touchPos.y - room.parentNode.y};
 		console.log(offset);
@@ -1010,7 +1037,7 @@ Node.prototype.delete = function(){
     nodeDrag = false;
     if(is_adding_node == true) {
         is_adding_node = false;
-    	setNodeColor(nodeColor.blue);
+    	//setNodeColor(nodeColor.blue);
     }
 
     //If node is in process of being connected to another node, reset link attempt
@@ -1098,11 +1125,11 @@ Edge.prototype.setupLine = function () {
 	}
     }
 
-    if(this.startNode.type != "node" && this.startNode.type !="Hallway") {
+    if(this.startNode.type != "Hallway") {
         startOffset = this.startNode.visual.width() / 2;
     }
 
-    if (this.endNode.type != "node" && this.endNode.type != "Hallway" && !addingDoor && !sentinel){
+    if (this.endNode.type != "Hallway" && !addingDoor && !sentinel){
         endOffset = this.endNode.visual.width() / 2;
     }
 
@@ -1129,6 +1156,7 @@ Edge.prototype.setupLine = function () {
         strokeWidth: edge_guide_width,
         opacity: .3
     });
+    this.guideLine.parentEdge = this;
 
     //Create guide dot (shows where edges will split at)
     this.guideDot = new Kinetic.Circle({
@@ -1139,7 +1167,8 @@ Edge.prototype.setupLine = function () {
         listening: false
     }).hide();
 
-    this.guideLine.on('tap click', function(e) {
+    this.guideLine.on(tap, function(e) {
+	clickedEdge = Date.now();
 	if(is_adding_node == true) {
 	    var touchPos = getRelativePointerPosition();
 	    var x = roundToNearest(touchPos.x,default_snap_tolerance);
@@ -1148,8 +1177,11 @@ Edge.prototype.setupLine = function () {
 	
 	    var targetEdge = edges[this.id];
 	    splitEdge(linkerNode, targetEdge, x, y);
-	} else if(selectedTool == "node") {
+	
+	} else {
+	   console.log(this.parentEdge.id);
 	}
+
     });
 
     this.guideLine.on(dbltap, function(e){
@@ -1188,11 +1220,11 @@ Edge.prototype.setPosition = function () {
 	sentinel = true;
     }
 
-    if(this.startNode.type != "node" && this.startNode.type != "Hallway") {
+    if(this.startNode.type != "Hallway") {
         startOffset = this.startNode.visual.width() / 2;
     }
 
-    if (this.endNode.type != "node" && this.endNode.type != "Hallway" && !sentinel){
+    if (this.endNode.type != "Hallway" && !sentinel){
         endOffset = this.endNode.visual.width() / 2;
     }
 
@@ -1252,13 +1284,18 @@ Edge.prototype.splitEdge = function (x, y) {
     counter++;
     //Create a new node;
     var id = "n" + getNextNodeId();
-    var n = new Node(x, y, id,  "node");
+    var n = new Node(x, y, id,  "Hallway");
     nodes[n.id] = n;
     currentNode = n;
 
     //Create two new edges from this edge's start and end nodes to the new node
     var e1 = new Edge(this.startNode, n, this.startNode.id + "_" + n.id);
-    var e2 = new Edge(this.endNode, n, this.endNode.id + "_" + n.id);
+    var e2 = new Edge(n, this.endNode, n.id + "_" + this.endNode.id, this.offset);
+
+    //Adjust room bbox edge list if necessary
+    if(this.offset.x > 0 || this.offset.y > 0) {
+	delete this.endNode.bbox.attrs.doors[this.startNode.id];
+    }
 
     edges[e1.id] = e1;
     edges[e2.id] = e2;
@@ -1319,17 +1356,17 @@ function showMenuForNode(node){
     $("#nodeMenu input").hide();
 
     //Show name input for any type other than node
-    if(n.type != "node") {
+    if(n.type != "Hallway") {
         $("#nodeMenu #name").val(n.attr["name"]);
         $("#nodeMenu #name").show();
     }
 
     switch(n.type) {
-        case "node":
+        case "Hallway":
             $("#nodeMenu #nodeMenuTitle").html("Node info");
         break;
 
-        case "room":
+        case "Room":
             $("#nodeMenu #nodeMenuTitle").html("Room info");
             //$("#nodeMenu #nodeWidth").spinner({
             //    min: 2,
@@ -1357,19 +1394,19 @@ function showMenuForNode(node){
             //$("#nodeMenu #nodeHeight").show();
         break;
 
-        case "elevator":
+        case "Elevator":
             $("#nodeMenu #nodeMenuTitle").html("Elevator info");
         break;
 
-        case "stair":
+        case "Stair":
             $("#nodeMenu #nodeMenuTitle").html("Stair info");
         break;
 
-        case "entrance":
+        case "Entrance":
             $("#nodeMenu #nodeMenuTitle").html("Entry info");
         break;
 
-        case "fire":
+        case "Fire":
             $("#nodeMenu #nodeMenuTitle").html("Extinguisher info");
         break;
     }
@@ -1520,7 +1557,7 @@ function loadGraph(data) {
 
     for(var i = 0; i < counter; i++) {
         var id = node_data[i]["node_id"];
-	var offset = node_data[i]["type"] != "node" ? node_img_size / 2 : 0;
+	var offset = node_data[i]["type"] != "Hallway" ? node_img_size / 2 : 0;
 
 	//var scaledValues = scaleNodeToRange(node_data[i]["x_pos"], node_data[i]["y_pos"], bounds);
 	//var x = scaledValues.x;
@@ -1530,7 +1567,7 @@ function loadGraph(data) {
 	var y = parseFloat(node_data[i]["y_pos"]);
 
 	var attr = {};	
-        if(node_data[i]["type"] == "room"){
+        if(node_data[i]["type"] == "Room"){
             attr = {
 	    	"width": node_data[i]["width"],
 		"height": node_data[i]["height"],
@@ -1550,7 +1587,6 @@ function loadGraph(data) {
  	}
 	
 	var node = new Node(x + offset, y + offset, id, node_data[i]["type"], attr)
-
         nodes[id] = node;
     }
 
@@ -1586,7 +1622,7 @@ function loadGraph(data) {
 
 function getWidthHeight() {
     $.each(nodes, function(key, value) {
-	if(value.type == "room") {
+	if(value.type == "Room") {
 	    value["attr"].width = value.bbox.width();
 	    value["attr"].height = value.bbox.height();
 	}
@@ -1631,12 +1667,27 @@ function getNextNodeId() {
 
 function setNodeColor(color) {
     $.each(nodes, function(key, value) {
-    	if(value.type == "node") {
+    	if(value.type == "Hallway") {
             value.visual.fill(color);
         }
     });
     nodeLayer.batchDraw();
 }
+
+function enableHitGraph() {
+makeAlert("hit graph enabled");
+    edgeLayer.hitGraphEnabled(true);
+    nodeLayer.hitGraphEnabled(true);
+    roomLayer.hitGraphEnabled(true);
+}
+
+function disableHitGraph() {
+makeAlert("hit graph disabled");
+    edgeLayer.hitGraphEnabled(false);
+    nodeLayer.hitGraphEnabled(false);
+    roomLayer.hitGraphEnabled(false);
+}
+
 
 function undo(){
 }

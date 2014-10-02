@@ -111,6 +111,10 @@
                 display: inline;
                 float: left;
             }
+	    
+ 	    .no-copy {
+  		-webkit-user-select: none;
+	    }
 
         </style>
     </head>
@@ -142,7 +146,7 @@
                 </form>
         </div>
 
-        <div id="stage"></div>
+        <div id="stage" class="no-copy"></div>
 
         <div id="nodeMenu">
             <h5 id="nodeMenuTitle">Room Info</h5>
@@ -280,7 +284,7 @@
     $("#imgForm").submit(function(e){
         e.preventDefault();
         var formData = new FormData($('#imgForm')[0]);
-        $.ajax({
+	$.ajax({
             //url: "{{{ URL::to('/tmpFloorplanUpload/') }}}",
             url: "../../tmpFloorplanUpload/"+bldgId+"/"+floorId,
 	    type: 'POST',
@@ -291,8 +295,12 @@
 
             success: function(result)
             {
+ 		makeAlert(result);
                 loadImage(result);
-            }
+            },
+	    error: function(e) {
+		makeAlert(e);
+	    }
         });
         $("#imgBox").fadeOut(250);
     });
