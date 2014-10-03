@@ -256,6 +256,8 @@ function joinNodes(startNode, endNode, offset) {
 //Split an edge when inserting node
 function splitEdge(linkerNode, targetEdge, x , y) {
     //Update the node color for all nodes
+    if(linkerNode.type == "Hallway")
+        linkerNode.visual.fill(nodeColor.blue);
     //setNodeColor(nodeColor.blue);
 
     var n = targetEdge.splitEdge(x, y);
@@ -404,7 +406,8 @@ function handleStageTap(evt) {
     //Both these lines accomplish the same thing, the latter is a hacky way of doing the former.
     //For some reason, getIntersection and touchPos aren't working when the stage is moved or zoomed. 
     if(edgeLayer.getIntersection(touchPos)) return;    
-    if(Date.now()-clickedEdge < 50) return; 
+	console.log(Date.now()-clickedEdge);
+    if(Date.now()-clickedEdge < 150) return; 
 
     //Handle node link
     if(stage.guideDrag || is_adding_node) {
@@ -475,6 +478,7 @@ function handleStageTap(evt) {
         }
     }
 
+
     //Logic for new special node (room, fire extinguisher, elevator, etc)
     if(selectedTool != undefined && selectedTool != "path" && selectedTool != "link") {
 	if (!is_hovering && !nodeDrag && !is_adding_node) {
@@ -483,7 +487,8 @@ function handleStageTap(evt) {
 	    counter++;
 
 	    var id = "n" + getNextNodeId();
-	    console.log(selectedTool);
+	    if(selectedTool == "Node")
+		selectedTool = "Hallway";
             var node = new Node(x, y, id, selectedTool);
             nodes[id] = node;
             linkerNode = node;
@@ -571,14 +576,15 @@ function unHover() {
     $("#yPos").html("<strong>Y: </strong>");
 }
 
-var Delay = 300, clicks = 0, timer = null;
+//var Delay = 300, clicks = 0, timer = null;
 function nodeTap(e, node){
-    clicks++;
+    //clicks++;
 
-    if(clicks === 1) {
-        timer = setTimeout(function() {
+    //if(clicks === 1) {
+        //timer = setTimeout(function() {
 
-    if(is_adding_node == true && node.type == "Hallway" && linkerNode != node) {
+    console.log(is_adding_node, node.type, linkerNode);
+    if(is_adding_node && node.type == "Hallway" && linkerNode != node) {
         is_adding_node = false;
         nodeDrag = false;
 
@@ -590,16 +596,16 @@ function nodeTap(e, node){
         console.log(node.id, node.x, node.y);
         handleNodeTap(e, node);
     }
-	clicks = 0;
-	}, Delay);
-    } else {
-	clearTimeout(timer);
-	console.log("Double Click");
-	if(selectedTool != "link") {
-	    showMenuForNode(node.visual);
-	}
-	clicks = 0;
-    }
+	//clicks = 0;
+	//}, Delay);
+    //} else {
+//	clearTimeout(timer);
+//	console.log("Double Click");
+//	if(selectedTool != "link") {
+//	    showMenuForNode(node.visual);
+//	}
+//	clicks = 0;
+  //  }
 }
 function moveNode(node, touchOffset) {
 	var touchPos = getRelativePointerPosition();
@@ -718,10 +724,10 @@ Node.prototype.setupNode = function (x, y) {
 	return nodeTap(e, _self);
     });
     c.on(dbltap, function(e) {
-	//if(selectedTool != "link") {
- 	  //  showMenuForNode(c);
-	//}
-	if(e.evt != undefined) {e.evt.preventDefault()} else {e.preventDefault()};	
+	if(selectedTool != "link") {
+ 	    showMenuForNode(c);
+	}
+	//if(e.evt != undefined) {e.evt.preventDefault()} else {e.preventDefault()};	
     });
 
     var touchOffset, touchPos;
@@ -867,9 +873,9 @@ Node.prototype.render = function(x, y, r){
        //     console.log("rendered");
         }
 
-	if(this.type == "Node")
-	    image.src = '../../img/junctiontool.png';
-	else
+	//if(this.type == "Node")
+	    //image.src = '../../img/junctiontool.png';
+	//else
             image.src = '../../img/' + this.type.toLowerCase() + 'tool.png';
 
         var width = _self.attr["width"];
@@ -1168,6 +1174,8 @@ Edge.prototype.setupLine = function () {
     }).hide();
 
     this.guideLine.on(tap, function(e) {
+//  	if(e.evt != undefined) {e.evt.stopPropagation()} else {e.stopPropagation()};
+
 	clickedEdge = Date.now();
 	if(is_adding_node == true) {
 	    var touchPos = getRelativePointerPosition();

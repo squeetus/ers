@@ -115,7 +115,8 @@ Route::post('floors/saveFloorplan/{id}', function($id){
     //$height  = $decoded["height"];
     $counter = $decoded["node_count"];
     $floor_id = $id;
-
+    $zPos = 0;
+    $floorSpacing = 150;
 
     //remove existing floor data from DB
     DB::delete("delete from nodes where floor = ? and building_fk = ?", array($floor_id, $bldg_fk));
@@ -135,13 +136,21 @@ Route::post('floors/saveFloorplan/{id}', function($id){
 	    $type = $node["type"];
         }
 
+	if ($floor_id > 0) {
+	    $zPos = $floorSpacing * $floor_id;
+	} else {
+	    $zPos = $floorSpacing * $floor_id + $floorSpacing;
+	}
+	
+
         if($node["type"] != "Room") {
-	    DB::insert("insert into nodes (x_pos, y_pos, z_pos, floor, node_id, name, type, building_fk) values (?, ?, ?, ?, ?, ?, ?, ?)", array($node["x"], $node["y"], $node["z"], $floor_id, $node["id"], $name, $type,$bldg_fk));
+	    DB::insert("insert into nodes (x_pos, y_pos, z_pos, floor, node_id, name, type, building_fk) values (?, ?, ?, ?, ?, ?, ?, ?)", array($node["x"], $node["y"], $zPos, $floor_id, $node["id"], $name, $type,$bldg_fk));
         } else {
 	    $width = $node["width"];
 	    $height = $node["height"];
 
-            DB::insert("insert into nodes (x_pos, y_pos, z_pos, floor, node_id, name, type, width, height, building_fk) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", array($node["x"], $node["y"], $node["z"], $floor_id, $node["id"], $name, $type, $width, $height, $bldg_fk));
+//$node["z"]
+            DB::insert("insert into nodes (x_pos, y_pos, z_pos, floor, node_id, name, type, width, height, building_fk) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", array($node["x"], $node["y"], $zPos, $floor_id, $node["id"], $name, $type, $width, $height, $bldg_fk));
         }
     }
 
