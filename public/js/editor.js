@@ -266,125 +266,6 @@ function splitEdge(linkerNode, targetEdge, x , y) {
     insertNode(linkerNode, n);
 }
 
-//Draw guide for attaching special nodes to path
-function drawGuide(x1, y1, x2, y2, id, type){
-
-    var x = x1;
-    var y = y1;
-
-    //Create guidenode
-    stage.guideNode = new Kinetic.Circle({
-        x: x1,
-        y: y1,
-        radius: node_radius,
-        fill: '#525252',
-        draggable: true,
-        opacity: 0.8
-    });
-
-    //Create guideline
-    stage.guideLine = new Kinetic.Line({
-        points: [x, y, x2, y2],
-        stroke: '#525252',
-        dash: [10, 5],
-        strokeWidth: 2,
-    });
-
-    stage.guideNode.on('dragstart', function(e){
-        //console.log("Starting");
-        stage.add(stage.tmpLayer);
-        stage.guideNode.stopDrag();
-        stage.guideNode.moveTo(stage.tmpLayer);
-        stage.guideLine.moveTo(stage.tmpLayer);
-        stage.guideNode.startDrag();
-        stage.guideLine.points([x, y, stage.guideNode.x(), stage.guideNode.y()]);
-        //rootLayer.draw();
-	nodeLayer.draw();
-	edgeLayer.draw();
-    }).on(touchmove, function(e){
-
-        stage.guideDrag = true;
-        var touchPos = stage.getPointerPosition();
-
-        var mouseX = touchPos.x / stage.scale().x - stage.getAbsolutePosition().x / stage.scale().x + stage.getOffset().x;
-        var mouseY = touchPos.y / stage.scale().y - stage.getAbsolutePosition().y / stage.scale().y + stage.getOffset().y;
-
-        stage.guideLine.points([x, y, stage.guideNode.x(), stage.guideNode.y()]);
-
-        //console.log(touchPos);
-
-        var point = {x: mouseX, y: mouseY};
-
-//        var tmpNode = rootLayer.getIntersection(touchPos);
-	var tmpNode = nodeLayer.getIntersection(touchPos);
-
-        if(tmpNode != null){
-            //console.log(tmpNode);
-        }
-
-        //***PROCESS MOVEMENT DURING LINKING PHASE (PREVIOUS MOUSE MOVEMENT STATE IS EVALUATED)
-
-        if(targetNode != null && targetNode.visual != null && targetNode.visual.className == "Line"){
-            targetNode.guideDot.hide();
-        }
-
-        //If the node hovered over is the same as the current target node...
-        if(targetNode != null && tmpNode != null && tmpNode.id == targetNode.id) {
-
-            //Highlight closest point if existing target node is a line
-            if(targetNode.visual != null && targetNode.visual.className == "Line"){
-                var closestPoint = targetNode.findClosestPointOnLineFrom(mouseX, mouseY);
-                targetNode.guideDot.x(closestPoint.x);
-                targetNode.guideDot.y(closestPoint.y);
-                targetNode.guideDot.show();
-            }
-
-        } else if(tmpNode != null) {
-            //New target node
-            targetNode = tmpNode;
-
-        } else if(tmpNode == null){
-            targetNode = null;
-        }
-
-        //If shape is not null, set it
-        if(tmpNode != null && tmpNode.id != linkerNode.id){
-
-             if(tmpNode.className == "Circle" || tmpNode.className == "Image"){
-                targetNode = nodes[tmpNode.id];
-                //console.log("Target node: ", targetNode);
-             }
-
-             else if(tmpNode.className == "Line") {
-                targetNode = edges[tmpNode.id];
-
-                //Highlight closest point
-                //console.log("Closest point: ", targetNode.findClosestPointOnLineFrom(mouseX, mouseY));
-             }
-        }
-
-
-    }).on('dragend', function(e){
-        is_adding_node = false;
-	stage.guideLine.points([x1, y1, stage.guideNode.x(), stage.guideNode.y()]);
-        //rootLayer.draw();
-	nodeLayer.draw();
-	edgeLayer.draw();
-    });
-
-    //Display guide node + line
-    //rootLayer.add(stage.guideLine);
-    //rootLayer.add(stage.guideNode);
-    //rootLayer.draw();
-    edgeLayer.add(stage.guideLine);
-    edgeLayer.add(stage.guideNode);
-    edgeLayer.draw();
-    stage.guideLine.moveToBottom();
-    stage.guideNode.moveToTop();
-    stage.guideNode.startDrag(); //Kick off drag event
-
-}
-
 function handleStageTap(evt) {
     var touchPos = getRelativePointerPosition();
 
@@ -676,7 +557,6 @@ function finalizeNodePos(node, touchOffset) {
 
             node.bbox.guideCircle.x(node.bbox.x() + parseFloat(node.bbox.width()) - node.bbox.offsetX());
             node.bbox.guideCircle.y(node.bbox.y() + parseFloat(node.bbox.height()) - node.bbox.offsetY());
-
             roomLayer.batchDraw();
         }
 
@@ -873,10 +753,7 @@ Node.prototype.render = function(x, y, r){
        //     console.log("rendered");
         }
 
-	//if(this.type == "Node")
-	    //image.src = '../../img/junctiontool.png';
-	//else
-            image.src = '../../img/' + this.type.toLowerCase() + 'tool.png';
+        image.src = '../../img/' + this.type.toLowerCase() + 'tool.png';
 
         var width = _self.attr["width"];
         var height = _self.attr["height"];

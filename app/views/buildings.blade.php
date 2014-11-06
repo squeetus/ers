@@ -167,6 +167,7 @@
                     tr += "<td class=\"editable\" key=\"" + json[row].id + "\" field=\"phone\"  contenteditable>" + json[row].phone + "</td>";
                     tr += "<td><button key=" + json[row].id + " class=\"floorplan btn btn-success btn-sm btn-block\">Floorplan</button>";
                     tr += "<button key=\"" + json[row].id + "\"class=\"delete btn btn-danger btn-sm btn-block\">Delete</button>";
+ 		    tr += "<td><button key=" + json[row].id + " class=\"responder btn btn-success btn-sm btn-block\">Responder View</button></td>";
                     tr += "</tr>";
                     $("#directory > tbody").append(tr);
                 }
@@ -178,6 +179,10 @@
                 $('button.delete').click(function(){
                     deleteBuilding($(this).attr("key"));
                 });
+
+		$('button.responder').click(function(){
+		    document.location.href = "{{{ URL::to('/responder') }}}" + "/" + $(this).attr('key');
+		});
 
 //                $(".editable").blur(function(){
 //                    //alert(":D");

@@ -132,6 +132,8 @@
                       <input id ="img" type="file" name ='image' value="Load image"  style="padding-bottom: 5px;"/>
                     </td><td>
 		      <button type="button" id="scaleUp" class="btn btn-default">^</button>
+		    </td><td rowspan="2">
+	 	      <button type="button" id="rotate" class="btn btn-default">ROT8</button>
 		    </td></tr><tr><td>
 		      <div class="btn-group">
                         <button id="imgUpload" class="btn btn-primary">Upload</button>
@@ -283,6 +285,10 @@
     //Upload temp floorplan image to server
     $("#imgForm").submit(function(e){
         e.preventDefault();
+
+	//Prevent upload if there is no image
+	if($("#img").val()=='')	return;
+	
         var formData = new FormData($('#imgForm')[0]);
 	$.ajax({
             //url: "{{{ URL::to('/tmpFloorplanUpload/') }}}",
@@ -295,11 +301,11 @@
 
             success: function(result)
             {
- 		makeAlert(result);
+ 		//makeAlert(result);
                 loadImage(result);
             },
 	    error: function(e) {
-		makeAlert(e);
+		//makeAlert(e);
 	    }
         });
         $("#imgBox").fadeOut(250);
@@ -318,7 +324,7 @@
                     	img = new Kinetic.Image({
                     	    image: imgObj,
                     	    x: 0,
-                    	    y: 0
+			    y: 0
                    	 });
                     	bgLayer = new Kinetic.Layer({listening: false});
 		    	bgLayer.add(img);
@@ -337,6 +343,7 @@
 	    }
 	});
     }
+   
 
     $("#updateBtn").click(function(e){
         //Get node that summoned the form
@@ -418,6 +425,28 @@
         bgLayer.removeChildren();
         img.destroy();
         bgLayer.draw();
+	img = null;
+
+	//Access delete image function in routes
+	$.ajax({
+            //url: "{{{ URL::to('/tmpFloorplanUpload/') }}}",
+            url: "../../tmpFloorplanDelete/"+bldgId+"/"+floorId,
+            type: 'POST',
+            //data: formData,
+            cache: false,
+            contentType: false,
+            processData: false,
+
+            success: function()
+            {
+                makeAlert("Background Image Deleted",0);
+            },
+            error: function(e) {
+                makeAlert(e);
+            }
+        });
+
+	$("#img").val("");
         $("#imgBox").fadeOut(250);
     });
 
@@ -441,12 +470,40 @@
 	    if(scale.x > 1 && scale.y > 1) {
 	    	scale.x--;
 	    	scale.y--;
+	    } else {
+
 	    }
             img.scale({x:scale.x,y:scale.y});
             bgLayer.draw();
         } else {
             console.log("No image to scale");
         } 
+    });
+
+    var angle = 0;
+    $("#rotate").click(function(e){
+	if(img != null) {
+	    //if(angle == 360)
+		//angle = 90;
+	    //else
+	        //angle += 90;
+
+	    //if(angle == 90 || angle == 270)
+	    	img.offset({x:img.width()/2,y:img.height()/2});
+	    //else
+		//img.offset({x:img.height()/2,y:img.width()/2});
+	    img.rotate(90);
+	    //if(angle == 180 || angle == 360)
+		//img.move({x:img.width()/2,y:img.height()/2});
+	    //else
+		if(angle == 0){
+		img.move({x:img.height()/2,y:img.width()/2});
+		angle = -1;
+		}
+	    bgLayer.draw();
+	    //img.offset({x:0,y:0});	    
+	    //makeAlert(angle + " " + img.offset().x + " " + img.offset().y, 2);
+	}
     });
 
 
